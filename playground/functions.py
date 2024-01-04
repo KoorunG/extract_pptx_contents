@@ -9,10 +9,10 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.slide import Slide
 from pathlib import Path
 
+
 # PPT에서 텍스트 추출하기
 def extract_text_in_ppt(shapes) -> list[str]:
     lines: list[str] = []
-
     for shape in shapes:
         # 1. 텍스트 프레임인 경우
         if shape.has_text_frame:
@@ -31,13 +31,13 @@ def extract_text_in_ppt(shapes) -> list[str]:
     return lines
 
 
-def add_line_from_paragraphs(lines, paragraphs):
+def add_line_from_paragraphs(lines: list[str], paragraphs):
     paragraph_generator = (paragraph for paragraph in paragraphs)
     for paragraph in paragraph_generator:
+        tup: tuple = paragraph.runs
         run_generator = (run for run in paragraph.runs)
         for run in run_generator:
             lines.append(run.text)
-
 
 def auto_fit_column_size(worksheet, columns=None, margin=2):
     for i, column_cells in enumerate(worksheet.columns):
@@ -82,24 +82,46 @@ def design_excel(ws: Worksheet):
             el.border = base_border()
     auto_fit_column_size(ws, margin=10)
 
+def has_digit(x):
+    return any(c.isdigit() for c in x)
+
 
 def read_ppt(path: Path, ws: Worksheet):
     prs: Presentation = Presentation(path)
     sls: list[Slide] = prs.slides
     for i, sl in enumerate(sls):
         print(f'[{path.name}] :: {i}번째 슬라이드 읽음')
-        
+        # [[print(f"[{j}] :::: {run.text}") for (j, run) in enumerate(shape.text_frame.paragraphs[0].runs) if (j == 0 or j == 1 or j == 2)] for (i, shape) in enumerate(sl.shapes) if (i == 0 or i == 1) and shape.has_text_frame]
+
+        result_set = set()
+        for (j, shape) in enumerate(sl.shapes):
+            result = ""
+            if j <= 4 and shape.has_text_frame:
+                for (k, run) in enumerate(shape.text_frame.paragraphs[0].runs):
+                    if k <= 3:
+                        result += run.text
+                        # print(f"[{k}] :::: {run.text}")
+            if result != "" and result is not None:
+                result_set.add(result)
+
+        filtered: list[str] = list(filter(has_digit, result_set))
+        sub = ""
+        if len(filtered) > 0:
+            dot_max = max(filtered, key=lambda x: len([c for c in x.split(".") if has_digit(c) and x.count(">") == 0]))
+            sub = dot_max
         # 슬라이드별 텍스트 추출하기 & 특수문자만 있는 경우를 제외하고 엑셀에 추가
         text_generator = (text for text in extract_text_in_ppt(sl.shapes))
         for text in text_generator:
-            append_row(i, text, path.name, ws)
+            append_row(i, text, path.name, ws, sub)
 
-global i
-i = 1
 
-def append_row(slide_index: int, text: str, file_name: str, ws: Worksheet):
-    global i
+global gi
+gi = 1
+
+
+def append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub: str):
+    global gi
     regex = re.compile("[0-9a-zA-Zㄱ-힗]", re.MULTILINE)
     if re.match(regex, text):
-        ws.append([i, file_name, str(slide_index) + "번째", text])
-        i += 1
+        ws.append([gi, file_name, str(slide_index) + "번째", sub, text])
+        gi += 1

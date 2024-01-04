@@ -6,7 +6,7 @@ from playground.functions import *
 wb = Workbook()
 ws = wb.active
 # 헤더 추가
-ws.append(['인덱스', 'PPT 파일명', '슬라이드 번호', '추출텍스트'])
+ws.append(['인덱스', 'PPT 파일명', '슬라이드 번호', '목차', '추출텍스트'])
 
 # 루트 경로
 root: Path = Path('C:/Users/jaehak/Desktop/회사/00. 제안작업/1. 본문/★ 본문점검/☆ 본문점검 제안요청서 매칭/추출대상 PPT')
