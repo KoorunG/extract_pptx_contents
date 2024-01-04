@@ -10,9 +10,8 @@ from pptx.slide import Slide
 from pathlib import Path
 
 # PPT에서 텍스트 추출하기
-def extract_text_in_ppt(shapes) -> set[str]:
-    # 중복제거용 set()
-    lines: set[str] = set()
+def extract_text_in_ppt(shapes) -> list[str]:
+    lines: list[str] = []
 
     for shape in shapes:
         # 1. 텍스트 프레임인 경우
@@ -37,7 +36,7 @@ def add_line_from_paragraphs(lines, paragraphs):
     for paragraph in paragraph_generator:
         run_generator = (run for run in paragraph.runs)
         for run in run_generator:
-            lines.add(run.text)
+            lines.append(run.text)
 
 
 def auto_fit_column_size(worksheet, columns=None, margin=2):
