@@ -14,20 +14,23 @@ from pathlib import Path
 def extract_text_in_ppt(shapes) -> list[str]:
     lines: list[str] = []
     for shape in shapes:
-        # 1. 텍스트 프레임인 경우
-        if shape.has_text_frame:
-            add_line_from_paragraphs(lines, shape.text_frame.paragraphs)
+
         # 2. 표인 경우
-        elif shape.has_table:
+        if shape.has_table:
             row_generator = (row for row in shape.table.rows)
             for row in row_generator:
                 cell_generator = (cell for cell in row.cells)
                 for cell in cell_generator:
                     add_line_from_paragraphs(lines, cell.text_frame.paragraphs)
-        # 3. 그룹인경우 재귀
-        elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            extract_text_in_ppt(shape.shapes)
+        else:
+            add_line_from_paragraphs(lines, shape.text_frame.paragraphs)
 
+        # 3. 그룹인경우 재귀
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            extract_text_in_ppt(shape.shapes)
+        # 1. 텍스트 프레임인 경우
+        if not shape.has_text_frame:
+            continue
     return lines
 
 
@@ -38,6 +41,7 @@ def add_line_from_paragraphs(lines: list[str], paragraphs):
         run_generator = (run for run in paragraph.runs)
         for run in run_generator:
             lines.append(run.text)
+
 
 def auto_fit_column_size(worksheet, columns=None, margin=2):
     for i, column_cells in enumerate(worksheet.columns):
@@ -82,6 +86,7 @@ def design_excel(ws: Worksheet):
             el.border = base_border()
     auto_fit_column_size(ws, margin=10)
 
+
 def has_digit(x):
     return any(c.isdigit() for c in x)
 
@@ -109,7 +114,8 @@ def read_ppt(path: Path, ws: Worksheet):
         if len(filtered) > 0:
             dot_max = max(filtered, key=lambda x: len([c for c in x.split(".") if has_digit(c) and x.count(">") == 0]))
             sub = dot_max
-        # 슬라이드별 텍스트 추출하기 & 특수문자만 있는 경우를 제외하고 엑셀에 추가
+
+        # PPT 텍스트 추출
         text_generator = (text for text in extract_text_in_ppt(sl.shapes))
         for text in text_generator:
             append_row(i, text, path.name, ws, sub)
@@ -121,7 +127,12 @@ gi = 1
 
 def append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub: str):
     global gi
-    regex = re.compile("[0-9a-zA-Zㄱ-힗]", re.MULTILINE)
-    if re.match(regex, text):
-        ws.append([gi, file_name, str(slide_index) + "번째", sub, text])
-        gi += 1
+
+    # 슬라이드별 텍스트 추출하기 & 특수문자만 있는 경우는 제외
+    # regex = re.compile("[0-9a-zA-Zㄱ-힗]", re.MULTILINE)
+    # if re.match(regex, text):
+
+    # 엑셀에서 일부 특수문자는 인식이 안되는 경우가 있어 텍스트앞에 작은따옴표(') 붙이기
+    text = "'" + text
+    ws.append([gi, file_name, str(slide_index) + "번째", sub, text])
+    gi += 1
