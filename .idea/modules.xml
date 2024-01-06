@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/5. python_extract_ppt.iml" filepath="$PROJECT_DIR$/5. python_extract_ppt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python_playground.iml" filepath="$PROJECT_DIR$/python_playground.iml" />
     </modules>
   </component>
 </project>

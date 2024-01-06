@@ -1,54 +1,57 @@
-import re
+from pathlib import Path
 
 from openpyxl.cell import Cell
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, Border, PatternFill
 from openpyxl.styles import Side
 from openpyxl.worksheet.worksheet import Worksheet
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.slide import Slide
-from pathlib import Path
 
 
 # PPT에서 텍스트 추출하기
-def extract_text_in_ppt(shapes) -> list[str]:
-    lines: list[str] = []
+def extract_text_in_ppt(shapes, lines=None) -> list[str]:
+    if lines is None:
+        lines = []
     for shape in shapes:
 
+        # 1. 일반적인 경우
+        if shape.has_text_frame:
+            add_line_from_text_frame(lines, shape.text_frame)
+
         # 2. 표인 경우
-        if shape.has_table:
+        elif shape.has_table:
             row_generator = (row for row in shape.table.rows)
             for row in row_generator:
                 cell_generator = (cell for cell in row.cells)
                 for cell in cell_generator:
-                    add_line_from_paragraphs(lines, cell.text_frame.paragraphs)
-        else:
-            add_line_from_paragraphs(lines, shape.text_frame.paragraphs)
+                    add_line_from_text_frame(lines, cell.text_frame)
 
-        # 3. 그룹인경우 재귀
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            extract_text_in_ppt(shape.shapes)
-        # 1. 텍스트 프레임인 경우
-        if not shape.has_text_frame:
-            continue
+        # 3. 그룹인 경우 -> 재귀
+        elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            extract_text_in_ppt(shape.shapes, lines)
     return lines
 
 
-def add_line_from_paragraphs(lines: list[str], paragraphs):
-    paragraph_generator = (paragraph for paragraph in paragraphs)
-    for paragraph in paragraph_generator:
-        tup: tuple = paragraph.runs
-        run_generator = (run for run in paragraph.runs)
-        for run in run_generator:
-            lines.append(run.text)
+def add_line_from_text_frame(lines: list[str], text_frame):
+    # openpyxl에서 일부 문자열을 인식하지 못하는 경우가 있어 전처리
+    text = ILLEGAL_CHARACTERS_RE.sub(r'', text_frame.text)
+    # 긴 텍스트의 경우 100자로 잘라서 보내기
+    while True:
+        text = text[:100]
+        if text is not None and len(text) != 0:
+            lines.append(text)
+        # print(text)
+        text = text[100:]
+        if len(text) < 100:
+            break
 
 
 def auto_fit_column_size(worksheet, columns=None, margin=2):
     for i, column_cells in enumerate(worksheet.columns):
         is_ok = False
-        if columns == None:
-            is_ok = True
-        elif isinstance(columns, list) and i in columns:
+        if columns is None or (isinstance(columns, list) and i in columns):
             is_ok = True
 
         if is_ok:
@@ -96,18 +99,22 @@ def read_ppt(path: Path, ws: Worksheet):
     sls: list[Slide] = prs.slides
     for i, sl in enumerate(sls):
         print(f'[{path.name}] :: {i}번째 슬라이드 읽음')
-        # [[print(f"[{j}] :::: {run.text}") for (j, run) in enumerate(shape.text_frame.paragraphs[0].runs) if (j == 0 or j == 1 or j == 2)] for (i, shape) in enumerate(sl.shapes) if (i == 0 or i == 1) and shape.has_text_frame]
 
         result_set = set()
-        for (j, shape) in enumerate(sl.shapes):
-            result = ""
-            if j <= 4 and shape.has_text_frame:
-                for (k, run) in enumerate(shape.text_frame.paragraphs[0].runs):
-                    if k <= 3:
-                        result += run.text
-                        # print(f"[{k}] :::: {run.text}")
-            if result != "" and result is not None:
-                result_set.add(result)
+        # for (j, shape) in enumerate(sl.shapes):
+        #     result = ""
+        #     if j <= 4 and shape.has_text_frame:
+        #         for (k, run) in enumerate(shape.text_frame.paragraphs[0].runs):
+        #             if k <= 3:
+        #                 result += run.text
+        #                 # print(f"[{k}] :::: {run.text}")
+        #     if result != "":
+        for sp in sl.shapes:
+            if sp.has_text_frame:
+                tf = sp.text_frame
+                if sp.shape_type == MSO_SHAPE_TYPE.PLACEHOLDER:
+                    text = ILLEGAL_CHARACTERS_RE.sub(r'', tf.text)
+                    result_set.add(text)
 
         filtered: list[str] = list(filter(has_digit, result_set))
         sub = ""
@@ -116,9 +123,8 @@ def read_ppt(path: Path, ws: Worksheet):
             sub = dot_max
 
         # PPT 텍스트 추출
-        text_generator = (text for text in extract_text_in_ppt(sl.shapes))
-        for text in text_generator:
-            append_row(i, text, path.name, ws, sub)
+        for t in extract_text_in_ppt(sl.shapes):
+            append_row(i, t, path.name, ws, sub)
 
 
 global gi
@@ -128,7 +134,7 @@ gi = 1
 def append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub: str):
     global gi
 
-    # 슬라이드별 텍스트 추출하기 & 특수문자만 있는 경우는 제외
+    # 슬라이드별 텍스트 추출 하기 & 특수문자만 있는 경우는 제외
     # regex = re.compile("[0-9a-zA-Zㄱ-힗]", re.MULTILINE)
     # if re.match(regex, text):
 
