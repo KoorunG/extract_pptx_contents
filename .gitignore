@@ -160,3 +160,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+
+# import
+import/
+
+# export
+export/
+
+# .imi
+python_playground.iml
