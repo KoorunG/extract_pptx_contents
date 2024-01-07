@@ -3,7 +3,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-from ppt_extract import read_ppt
+from playground.ppt_extract import read_ppt
 
 
 class MyTestCase(unittest.TestCase):
