@@ -9,7 +9,7 @@ from pptx.slide import Slide
 from playground.utils import has_digit
 
 
-def read_ppt(path: Path, ws: Worksheet):
+def read_ppt(path: Path, ws: Worksheet = None):
     prs: Presentation = Presentation(path)
     sls: list[Slide] = prs.slides
     for i, sl in enumerate(sls):
@@ -38,19 +38,19 @@ def read_ppt(path: Path, ws: Worksheet):
             sub = dot_max
 
         # PPT 텍스트 추출
-        for t in _extract_text_in_ppt(sl.shapes):
-            _append_row(i, t, path.name, ws, sub)
+        for t in __extract_text_in_ppt(sl.shapes):
+            __append_row(i, t, path.name, ws, sub)
 
 
 # PPT에서 텍스트 추출하기
-def _extract_text_in_ppt(shapes, lines=None) -> list[str]:
+def __extract_text_in_ppt(shapes, lines=None) -> list[str]:
     if lines is None:
         lines = []
     for shape in shapes:
 
         # 1. 일반적인 경우
         if shape.has_text_frame:
-            _add_line_from_text_frame(lines, shape.text_frame)
+            __add_line_from_text_frame(lines, shape.text_frame)
 
         # 2. 표인 경우
         elif shape.has_table:
@@ -58,15 +58,15 @@ def _extract_text_in_ppt(shapes, lines=None) -> list[str]:
             for row in row_generator:
                 cell_generator = (cell for cell in row.cells)
                 for cell in cell_generator:
-                    _add_line_from_text_frame(lines, cell.text_frame)
+                    __add_line_from_text_frame(lines, cell.text_frame)
 
         # 3. 그룹인 경우 -> 재귀
         elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            _extract_text_in_ppt(shape.shapes, lines)
+            __extract_text_in_ppt(shape.shapes, lines)
     return lines
 
 
-def _add_line_from_text_frame(lines: list[str], text_frame):
+def __add_line_from_text_frame(lines: list[str], text_frame):
     # openpyxl에서 일부 문자열을 인식하지 못하는 경우가 있어 전처리
     text = ILLEGAL_CHARACTERS_RE.sub(r'', text_frame.text)
     # 긴 텍스트의 경우 100자로 잘라서 보내기
@@ -85,7 +85,7 @@ global gi
 gi = 1
 
 
-def _append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub: str):
+def __append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub: str):
     global gi
 
     # 슬라이드별 텍스트 추출 하기 & 특수문자만 있는 경우는 제외
