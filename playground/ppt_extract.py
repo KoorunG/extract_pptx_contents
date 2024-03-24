@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
@@ -14,16 +15,7 @@ def read_ppt(path: Path, ws: Worksheet = None):
     sls: list[Slide] = prs.slides
     for i, sl in enumerate(sls):
         print(f'[{path.name}] :: {i}번째 슬라이드 읽음')
-
         result_set = set()
-        # for (j, shape) in enumerate(sl.shapes):
-        #     result = ""
-        #     if j <= 4 and shape.has_text_frame:
-        #         for (k, run) in enumerate(shape.text_frame.paragraphs[0].runs):
-        #             if k <= 3:
-        #                 result += run.text
-        #                 # print(f"[{k}] :::: {run.text}")
-        #     if result != "":
         for sp in sl.shapes:
             if sp.has_text_frame:
                 tf = sp.text_frame
@@ -69,15 +61,7 @@ def __extract_text_in_ppt(shapes, lines=None) -> list[str]:
 def __add_line_from_text_frame(lines: list[str], text_frame):
     # openpyxl에서 일부 문자열을 인식하지 못하는 경우가 있어 전처리
     text = ILLEGAL_CHARACTERS_RE.sub(r'', text_frame.text)
-    # 긴 텍스트의 경우 100자로 잘라서 보내기
-    while True:
-        text = text[:100]
-        if text is not None and len(text) != 0:
-            lines.append(text)
-        # print(text)
-        text = text[100:]
-        if len(text) < 100:
-            break
+    lines.append(text)
 
 
 # 인덱스 넘버링을 위한 글로벌 변수 선언
@@ -90,10 +74,9 @@ def __append_row(slide_index: int, text: str, file_name: str, ws: Worksheet, sub
 
     # 슬라이드별 텍스트 추출 하기 & 특수문자만 있는 경우는 제외
     # regex = re.compile("[0-9a-zA-Zㄱ-힗]", re.MULTILINE)
-    # if re.match(regex, text):
-
-    # 엑셀에서 일부 특수문자는 인식이 안되는 경우가 있어 텍스트앞에 구분자(') 붙이기
-    # (엑셀에서 '텍스트 나누기'로 후처리 필요함)
-    text = "'" + text
-    ws.append([gi, file_name, str(slide_index) + "번째", sub, text])
-    gi += 1
+    if text is not None and len(text) != 0 and not (re.sub(r'\W', '', text) == ''):
+        # 엑셀에서 일부 특수문자는 인식이 안되는 경우가 있어 텍스트앞에 구분자(') 붙이기
+        # (엑셀에서 '텍스트 나누기'로 후처리 필요함)
+        text = "^" + text
+        ws.append([gi, file_name, str(slide_index) + "번째", sub, text])
+        gi += 1
